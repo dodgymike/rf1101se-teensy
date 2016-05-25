@@ -32,6 +32,19 @@ SPI spi;
 // CSN: 10
 // SCK: 13
 // GDO0: 2
+// And 3.3V for power
+
+// flag that a packet has been received
+boolean packetAvailable = false;
+
+// interruptPin
+int interruptPin = 0;
+
+// Handle interrupt from CC1101 (INT0) gdo0 on pin2
+void cc1101signalsInterrupt(void) {
+  // set the flag that a package is available
+  packetAvailable = true;
+}
 
 // SETUP HERE
 void setup()
@@ -45,6 +58,12 @@ void setup()
   //pinMode(ledPin, OUTPUT);
   Serial.begin(9600);
 
+  // Set interrupt
+  attachInterrupt(digitalPinToInterrupt(interruptPin), cc1101signalsInterrupt, FALLING);
+
+  // Set GDO pin as an input
+  pinMode(interruptPin, INPUT);
+  
   // SyncWord
   uint8_t syncH = 0xEE; // 11101110 twice gives you a sync word of 1110111011101110
   uint8_t syncL = 0xEE;
@@ -118,13 +137,14 @@ void send_data() {
 
   data.length = 5;
 
-  // If you just put numbers i.e. 5,4,3,2,1 they will be taken as HEX so I write it explicitly here.
-
-  data.data[0] = 0x05; // 00000101
-  data.data[1] = 0x04; // 00000100
-  data.data[2] = 0x03; // 00000011
-  data.data[3] = 0x02; // 00000010
-  data.data[4] = 0x01; // 00000001
+  // Alphanumerics get converted to hexidecimal. So if you asign a byte as 15 (DEC) you'll actually transmit 0F (HEX).
+  // So you can either assign the alphanumeric or the direct hex representation.
+  
+  data.data[0] = 0x61; // 'a'
+  data.data[1] = 'p'; // 0x70
+  data.data[2] = 0x70; // 'p'
+  data.data[3] = 'l'; // 0x6C
+  data.data[4] = 'e'; // 0x65
 
   // Handy trick to invert bits in python
   // hex(~0b1111101011111011111111001111110111111110 & 0xFFFFFFFFFF)
@@ -136,10 +156,72 @@ void send_data() {
   }
 }
 
+void ReadLQI()
+{
+  byte lqi = 0;
+  byte value = 0;
+  lqi = (cc1101.readReg(CC1101_LQI, CC1101_STATUS_REGISTER));
+  value = 0x3F - (lqi & 0x3F);
+  Serial.print("CC1101_LQI ");
+  Serial.println(value);
+}
+
+void ReadRSSI()
+{
+  byte rssi = 0;
+  byte value = 0;
+
+  rssi = (cc1101.readReg(CC1101_RSSI, CC1101_STATUS_REGISTER));
+
+  if (rssi >= 128)
+  {
+    value = 255 - rssi;
+    value /= 2;
+    value += 74;
+  }
+  else
+  {
+    value = rssi / 2;
+    value += 74;
+  }
+  Serial.print("CC1101_RSSI ");
+  Serial.println(value);
+}
+
+void receive_data() {
+  Serial.println("receiving data");
+  // Disable wireless reception interrupt
+  detachInterrupt(digitalPinToInterrupt(interruptPin));
+
+  ReadRSSI();
+  ReadLQI();
+  // clear the flag
+  packetAvailable = false;
+
+  CCPACKET packet;
+
+  if (cc1101.receiveData(&packet) > 0) {
+    if (packet.crc_ok && packet.length > 1) {
+      Serial.print("Packet length is ");
+      Serial.print(packet.length);
+      Serial.print("Packet data: ");
+      for (int i = 0; i < packet.length; ++i) {
+        Serial.print(packet.data[i], HEX);
+        Serial.print(" ");
+      }
+    }
+  }
+  attachInterrupt(digitalPinToInterrupt(interruptPin), cc1101signalsInterrupt, FALLING);
+}
+
 void loop()
 {
-  send_data();
-  delay(2000);
+  //send_data();
+  delay(1000);
+  if (packetAvailable) {
+    receive_data();
+  }
+  delay(1000);
 }
 
 
