@@ -38,9 +38,9 @@ SPI spi;
 boolean packetAvailable = false;
 
 // interruptPin
-int interruptPin = 0;
+int interruptPin = 2;
 
-// Handle interrupt from CC1101 (INT0) gdo0 on pin2
+// Handle interrupt from CC1101 (INT0) gdo0 on pin2(?)
 void cc1101signalsInterrupt(void) {
   // set the flag that a package is available
   packetAvailable = true;
@@ -58,11 +58,12 @@ void setup()
   //pinMode(ledPin, OUTPUT);
   Serial.begin(9600);
 
+  // Set GDO pin as an input?
+  pinMode(interruptPin, INPUT);
+  
   // Set interrupt
   attachInterrupt(digitalPinToInterrupt(interruptPin), cc1101signalsInterrupt, FALLING);
 
-  // Set GDO pin as an input
-  pinMode(interruptPin, INPUT);
   
   // SyncWord
   uint8_t syncH = 0xEE; // 11101110 twice gives you a sync word of 1110111011101110
