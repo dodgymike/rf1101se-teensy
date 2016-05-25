@@ -58,7 +58,7 @@ void setup()
   //pinMode(ledPin, OUTPUT);
   Serial.begin(9600);
 
-  // Set GDO pin as an input?
+  // Set GDO0 pin as an input?
   pinMode(interruptPin, INPUT);
   
   // Set interrupt
@@ -107,6 +107,15 @@ void setup()
   // Define what a strong '1' signal is in the second byte of the PATABLE
   set_patable();
 
+  // GDO0 - CC1101_IOCFG0 - Trying to set the correct value to trigger interrupts
+  //cc1101.writeReg(CC1101_IOCFG0, 0x06);
+
+  // GDO1
+  //cc1101.writeReg(CC1101_IOCFG1, 0x06);
+  
+  // GDO2 - 
+  //cc1101.writeReg(CC1101_IOCFG2, 0x06);
+  
   delay(1000);
 
   Serial.println("Radio initialising\n");
@@ -190,18 +199,20 @@ void ReadRSSI()
 }
 
 void receive_data() {
-  Serial.println("receiving data");
+  
   // Disable wireless reception interrupt
   detachInterrupt(digitalPinToInterrupt(interruptPin));
 
   ReadRSSI();
   ReadLQI();
+  
   // clear the flag
   packetAvailable = false;
 
   CCPACKET packet;
 
   if (cc1101.receiveData(&packet) > 0) {
+    Serial.println("Got a packet, now for the CRC check");
     if (packet.crc_ok && packet.length > 1) {
       Serial.print("Packet length is ");
       Serial.print(packet.length);
@@ -218,7 +229,7 @@ void receive_data() {
 void loop()
 {
   //send_data();
-  delay(1000);
+  //delay(1000);
   if (packetAvailable) {
     receive_data();
   }
